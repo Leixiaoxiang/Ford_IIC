@@ -190,6 +190,17 @@ void vIIC_IL_RxMsg_0x00_ExecuteFunction(const UINT8 * const pu8buf)
         u8Status[1] |= IIC_IL_RST_RQ_CTRL(0);
         /* reserve area for output message. */
     }
+
+    /* @DCERR */
+    if( NULL != pstDisplayStatus->pbGetDisconnectError)
+    {
+        u8Status[1] |= IIC_IL_DCERR_CTRL(pstDisplayStatus->pbGetDisconnectError());
+    }
+    else
+    {
+        u8Status[1] |= IIC_IL_DCERR_CTRL(0);
+        /* reserve area for output message. */
+    }
 }
 
 
