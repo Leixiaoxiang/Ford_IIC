@@ -55,14 +55,40 @@ typedef struct
     BOOL (*pbGetDispalyStatus)(void);
 }IIC_IL_DISPALY_STATUS_FUNCTION_ST,*IIC_IL_DISPALY_STATUS_FUNCTION_PST;
 
+typedef struct
+{
+    UINT8 (*pbGetDisplayID)(void);
+    UINT8 (*pbGetSubrevision)(void);
+}IIC_IL_DISPALY_IDENTIFICATION_FUNCTION_ST,*IIC_IL_DISPALY_IDENTIFICATION_FUNCTION_PST;
+
+typedef struct
+{
+    UINT8 (*pbGetLCDBacklightPwmValue)(void);
+}IIC_IL_LCD_BACKLIGHT_PWM_VALUE_FUNCTION_ST,*IIC_IL_LCD_BACKLIGHT_PWM_VALUE_FUNCTION_PST;
+
+
+static void vIIC_IL_RxMsg_0x00_ExecuteFunction(const UINT8 * const pu8buf);
+static void vIIC_IL_RxMsg_0x01_ExecuteFunction(const UINT8 * const pu8buf);
+static void vIIC_IL_RxMsg_0x02_ExecuteFunction(const UINT8 * const pu8buf);
+
+
 static const IIC_IL_DISPALY_STATUS_FUNCTION_ST st_IIC_il_Dispaly_Status_Fcuntion = \
     IIC_IL_DISPALY_STATUS_FUNCTION_CFG;
 
+static const IIC_IL_DISPALY_IDENTIFICATION_FUNCTION_ST st_IIC_il_Dispaly_Identification_Fcuntion = \
+    IIC_IL_DISPALY_IDENTIFICATION_FUNCTION_CFG;
+
+static const IIC_IL_LCD_BACKLIGHT_PWM_VALUE_FUNCTION_ST st_IIC_il_LCD_Backlight_Pwm_Value_Fcuntion = \
+    IIC_IL_LCD_BACKLIGHT_PWM_VALUE_FUNCTION_CFG;
+
 static const IIC_IL_FRAME_ST st_IIC_il_Frame[] =    \
 {
-    {0x00,  vIIC_IL_RxMsg_0x00_ExecuteFunction},
-    {0x01,  vIIC_IL_RxMsg_0x01_ExecuteFunction},
+    IIC_IL_FRAME_CFG
+    {0xFF, NULL}
 };
+
+/* CAN  NOT USE FOR RTOS */
+static UINT8 u8TXbuf[IIC_DATA_MAX_SIZE];
 
 /*
 @Display Status
@@ -131,79 +157,245 @@ This bit reflects actual status. This may be different, due to delay or an error
 1  Display is enabled. 
 */
 
-
-
-void vIIC_IL_RxMsg_0x00_ExecuteFunction(const UINT8 * const pu8buf)
+void vIIC_IL_RxMsg_0x00_UserExecuteFunction(UINT8 * const pu8Statusbuf)
 {
-    /*
-        The I2C Slave shall leave SDA undriven resulting in Data = 0xFF when 
-        communication abnormal.
-    */
-    UINT8 u8Status[3] = {0x00,0xFF,0xFF};
 
+}
+
+static void vIIC_IL_RxMsg_0x00_ExecuteFunction(const UINT8 * const pu8buf)
+{
     /*
         Determine whether the member function of st_IIC_il_Dispaly_Status_Fcuntion is NULL.
         if is NULL, clear correspoind bit and output message.
     */
     const IIC_IL_DISPALY_STATUS_FUNCTION_PST pstDisplayStatus = &st_IIC_il_Dispaly_Status_Fcuntion;
-    
+
+     /*
+        The I2C Slave shall leave SDA undriven resulting in Data = 0xFF when 
+        communication abnormal.
+    */
+    memset(u8TXbuf,0xFF,IIC_DATA_MAX_SIZE);
+
+    /*
+        Fill CMDID in buf.
+    */
+    u8TXbuf[0] = (UINT8)0x00;
+
     /* @TCERR */
     if( NULL != pstDisplayStatus->pbGetTouchConnectionError )
     {
-        u8Status[1] |= IIC_IL_TCERR_CTRL(pstDisplayStatus->pbGetTouchConnectionError());
+        u8TXbuf[1] |= IIC_IL_TCERR_CTRL(pstDisplayStatus->pbGetTouchConnectionError());
     }
     else
     {
-        u8Status[1] |= IIC_IL_TCERR_CTRL(0);
+        u8TXbuf[1] |= IIC_IL_TCERR_CTRL(0);
         /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
     }
     
     /* @TSCERR */
     if( NULL != pstDisplayStatus->pbGetTouchScreenControllerError)
     {
-        u8Status[1] |= IIC_IL_TSCERR_CTRL(pstDisplayStatus->pbGetTouchConnectionError());
+        u8TXbuf[1] |= IIC_IL_TSCERR_CTRL(pstDisplayStatus->pbGetTouchConnectionError());
     }
     else
     {
-        u8Status[1] |= IIC_IL_TSCERR_CTRL(0);
+        u8TXbuf[1] |= IIC_IL_TSCERR_CTRL(0);
         /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
     }
 
     /* @LLOSS */
     if( NULL != pstDisplayStatus->pbGetLossOfLock)
     {
-        u8Status[1] |= IIC_IL_LLOSS_CTRL(pstDisplayStatus->pbGetLossOfLock());
+        u8TXbuf[1] |= IIC_IL_LLOSS_CTRL(pstDisplayStatus->pbGetLossOfLock());
     }
     else
     {
-        u8Status[1] |= IIC_IL_LLOSS_CTRL(0);
+        u8TXbuf[1] |= IIC_IL_LLOSS_CTRL(0);
         /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
     }
 
     /* @RST_RQ */
     if( NULL != pstDisplayStatus->pbGetResetRequest)
     {
-        u8Status[1] |= IIC_IL_RST_RQ_CTRL(pstDisplayStatus->pbGetResetRequest());
+        u8TXbuf[1] |= IIC_IL_RST_RQ_CTRL(pstDisplayStatus->pbGetResetRequest());
     }
     else
     {
-        u8Status[1] |= IIC_IL_RST_RQ_CTRL(0);
+        u8TXbuf[1] |= IIC_IL_RST_RQ_CTRL(0);
         /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
     }
 
     /* @DCERR */
     if( NULL != pstDisplayStatus->pbGetDisconnectError)
     {
-        u8Status[1] |= IIC_IL_DCERR_CTRL(pstDisplayStatus->pbGetDisconnectError());
+        u8TXbuf[1] |= IIC_IL_DCERR_CTRL(pstDisplayStatus->pbGetDisconnectError());
     }
     else
     {
-        u8Status[1] |= IIC_IL_DCERR_CTRL(0);
+        u8TXbuf[1] |= IIC_IL_DCERR_CTRL(0);
         /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
     }
+
+    /* @TERR */
+    if( NULL != pstDisplayStatus->pbGetTemperatureDerating)
+    {
+        u8TXbuf[1] |= IIC_IL_TERR_CTRL(pstDisplayStatus->pbGetTemperatureDerating());
+    }
+    else
+    {
+        u8TXbuf[1] |= IIC_IL_TERR_CTRL(0);
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    }
+
+    /* @BLERR */
+    if( NULL != pstDisplayStatus->pbGetLCDBacklightError)
+    {
+        u8TXbuf[1] |= IIC_IL_BLERR_CTRL(pstDisplayStatus->pbGetLCDBacklightError());
+    }
+    else
+    {
+        u8TXbuf[1] |= IIC_IL_BLERR_CTRL(0);
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    }
+
+    /* @LCDERR */
+    if( NULL != pstDisplayStatus->pbGetLCDError)
+    {
+        u8TXbuf[1] |= IIC_IL_LCDERR_CTRL(pstDisplayStatus->pbGetLCDError());
+    }
+    else
+    {
+        u8TXbuf[1] |= IIC_IL_LCDERR_CTRL(0);
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    }
+
+    /*@BIT[7-3] RESERVED, clear unused bit */
+    u8TXbuf[2] &= (UINT8)0x07;
+    /*ADD FUNCTION CALL FOR USER*/
+    vIIC_IL_RxMsg_0x00_UserExecuteFunction(&u8TXbuf[2]);
+
+    /* @INIT */
+    if( NULL != pstDisplayStatus->pbGetDisplayInitialized)
+    {
+        u8TXbuf[2] |= IIC_IL_INIT_CTRL(pstDisplayStatus->pbGetDisplayInitialized());
+    }
+    else
+    {
+        u8TXbuf[2] |= IIC_IL_INIT_CTRL(0);
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    } 
+
+    /* @TSC_ST */
+    if( NULL != pstDisplayStatus->pbGetTouchControllerStatus)
+    {
+        u8TXbuf[2] |= IIC_IL_TSC_ST_CTRL(pstDisplayStatus->pbGetTouchControllerStatus());
+    }
+    else
+    {
+        u8TXbuf[2] |= IIC_IL_TSC_ST_CTRL(0);
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    }
+
+    /* @DISP_ST */
+    if( NULL != pstDisplayStatus->pbGetDispalyStatus)
+    {
+        u8TXbuf[2] |= IIC_IL_DISP_ST_CTRL(pstDisplayStatus->pbGetDispalyStatus());
+    }
+    else
+    {
+        u8TXbuf[2] |= IIC_IL_DISP_ST_CTRL(0);
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    }
+
+    IIC_FIFO_gvTxWrite(u8TXbuf);
 }
 
+void vIIC_IL_RxMsg_0x01_ExecuteFunction(const UINT8 * const pu8buf)
+{
+    const IIC_IL_DISPALY_IDENTIFICATION_FUNCTION_PST pstDisplayIdentification = &st_IIC_il_Dispaly_Identification_Fcuntion;
 
+     /*
+        The I2C Slave shall leave SDA undriven resulting in Data = 0xFF when 
+        communication abnormal.
+    */
+    memset(u8TXbuf,0xFF,IIC_DATA_MAX_SIZE);
+
+    /*
+        Fill CMDID in buf.
+    */
+    u8TXbuf[0] = (UINT8)0x01;
+
+    if( NULL != pstDisplayIdentification->pbGetDisplayID)
+    {
+        u8TXbuf[1] = pstDisplayIdentification->pbGetDisplayID();
+    }
+    else
+    {
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    }
+
+    if( NULL != pstDisplayIdentification->pbGetSubrevision)
+    {
+        u8TXbuf[2] = pstDisplayIdentification->pbGetSubrevision();
+    }
+    else
+    {
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    }
+
+    IIC_FIFO_gvTxWrite(u8TXbuf);
+}
+
+void vIIC_IL_RxMsg_0x02_ExecuteFunction(const UINT8 * const pu8buf)
+{
+    /*
+        Stroe temp pwm.
+    */
+    UINT16 tempPWm;
+
+    const IIC_IL_LCD_BACKLIGHT_PWM_VALUE_FUNCTION_PST pstLCDBacklightPwmValue = &st_IIC_il_LCD_Backlight_Pwm_Value_Fcuntion;
+
+     /*
+        The I2C Slave shall leave SDA undriven resulting in Data = 0xFF when 
+        communication abnormal.
+    */
+    memset(u8TXbuf,0xFF,IIC_DATA_MAX_SIZE);
+
+    /*
+        Fill CMDID in buf.
+    */
+    u8TXbuf[0] = (UINT8)0x02;
+
+    if( NULL != pstLCDBacklightPwmValue->pbGetLCDBacklightPwmValue)
+    {
+        tempPWm = (UINT16)(pstLCDBacklightPwmValue->pbGetLCDBacklightPwmValue());
+
+        tempPWm = tempPWm * (UINT8)10;
+
+        u8TXbuf[1] = (UINT8)(tempPWm & (UINT16)(0xFF));    /* store [7:0] */
+
+        u8TXbuf[2] = (UINT8)(tempPWm >> (UINT8)8);         /* store [9:8] */
+    }
+    else
+    {
+        /* reserve area for output message. */
+        OUTPUT_ERROR_MESSAGE();
+    }
+
+}
 void vIIC_IL_Determine_Change(void)
 {
     //检测变化，先锁存数值，产生中断，读取数据，再检测，在锁存，
